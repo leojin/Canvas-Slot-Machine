@@ -105,3 +105,4 @@ constVal.STATE_TO_RESET |
 return the current status
 
 # DEMO
+[link](http://htmlpreview.github.io/?https://github.com/leojin/Canvas-Slot-Machine/blob/master/index.html)
