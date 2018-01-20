@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset='utf-8'>
+	<title>Demo</title>
+	<style type='text/css'>
+		html {
+			background: #000;
+			-webkit-user-select: none;
+			user-select: none;
+		}
+		label {
+			color: #fff;
+		}
+		input {
+			-webkit-appearance: none;
+			outline: none;
+			border-radius: 5px;
+			border: none;
+			line-height: 20px;
+			padding: 0 15px;
+			margin: 0;
+			font-size: 14px;
+		}
+		input[type='button'] {
+			cursor: pointer;
+		}
+		#wrap {
+			margin: 0 auto;
+			width: 800px;
+		}
+		#region_canvas {
+			height: 100px;
+			padding: 10px 0;
+			display: -webkit-flex;
+			display: flex;
+		}
+		#region_canvas canvas {
+			flex: 1;
+			margin-left: 10px;
+		}
+		#region_canvas canvas:first-child {
+			margin-left: 0;
+		}
+		#region_config {
+			color: #fff;
+			max-height: 50px;
+			overflow: hidden;
+			transition: max-height 0.2s;
+		}
+		#region_config.active {
+			max-height: 1000px;
+		}
+		#btnSlide {
+			text-align: right;
+			font-weight: 700;
+			font-size: 30px;
+			line-height: 50px;
+			height: 50px;
+			cursor: pointer;
+		}
+		#board {
+			border-top: 1px solid #fff;
+			padding-top: 10px;
+			color: #fff;
+			line-height: 25px;
+			font-size: 14px;
+		}
+	</style>
+</head>
+<body>
+	<div id='wrap'>
+		<div id='region_canvas'>
+		</div>
+		<div id='region_config'>
+			<div id='btnSlide'>+</div>
+			<div id='form'>	
+				<label>奖品名称</label>&nbsp;&nbsp;<input id='inputName' type='text'>
+				&nbsp;&nbsp;
+				<label>奖品个数</label>&nbsp;&nbsp;<input id='inputNum' type='text'>
+				&nbsp;&nbsp;
+				<input id='btnSub' type='button' value='更新'>
+				&nbsp;&nbsp;
+				<input id='btnClear' type='button' value='清空结果'>
+				<p id='board'></p>
+			</div>
+		</div>
+	</div>
+
+	<script type="text/javascript" src='slot.js'></script>
+	<!--<script type="text/javascript" src='data-test.js'></script>-->
+	<script type="text/javascript" src='data.js'></script>
+	<script type="text/javascript">
+		var utils = {
+			getItem: function (key, defaultValue, isObj) {
+				if (null !== localStorage.getItem(key)) {
+					return isObj ?
+						JSON.parse(localStorage.getItem(key)):
+						localStorage.getItem(key);
+				} else {
+					localStorage.setItem(key, isObj ? JSON.stringify(defaultValue) : defaultValue);
+					return defaultValue;
+				}
+			},
+			setItem: function (key, value, isObj) {
+				localStorage.setItem(key, isObj ? JSON.stringify(value) : value);
+			},
+			add: function (key, val) {
+				var li = [];
+				if (null !== localStorage.getItem(key)) {
+					li = JSON.parse(localStorage.getItem(key));
+				}
+				li.push(val);
+				localStorage.setItem(key, JSON.stringify(li));
+			},
+			copyList: function (li) {
+				var cp = [];
+				for (var i = 0; i < li.length; i++) {
+					cp[i] = li[i];
+				}
+				return cp;
+			},
+			splitList: function (list, num) {
+				var ret = [];
+				for (var i = 0; i < num; i++) {
+					ret[i] = [];
+				}
+				for (var i = 0; i < list.length; i++) {
+					ret[i % num].push(list[i]);
+				}
+				return ret;
+			},
+			getById: function (id) {
+				return document.getElementById(id);
+			},
+			on: function (dom, event, cb) {
+				dom.addEventListener(event, cb, false);
+			},
+			trigger: function (dom, event) {
+				var ev = document.createEvent('HTMLEvents');
+				ev.eventName = event;
+				ev.initEvent(event, true, true);
+				dom.dispatchEvent(ev);
+			},
+		}
+	</script>
+	<script type="text/javascript">
+		var CANVAS_HEIGHT = 100;
+		var CANVAS_REGION_WIDTH = 800;
+		var CANVAS_REGION_SPLIT = 10;
+
+		var LS_KEY_PRIZE_NAME = 'prize_name';
+		var LS_KEY_PRIZE_NUM = 'prize_num';
+		var LS_KEY_LIST = 'list';
+
+		var btnSlide = utils.getById('btnSlide');
+		var btnClear = utils.getById('btnClear');
+		var btnSub = utils.getById('btnSub');
+		var regionConfig = utils.getById('region_config');
+		var inputName = utils.getById('inputName');
+		var inputNum = utils.getById('inputNum');
+		var board = utils.getById('board');
+
+		var slotList = [];
+		var nameList = [];
+		var newNameList = [];
+
+		var drawBoard = function () {
+			var rst = [];
+			for (var k in localStorage) {
+				if (/^p_/.test(k)) {
+					rst.push('<b>' + k.substr(2) + '</b> : ' + utils.getItem(k, [], true).join(' , '));
+				}
+			}
+			board.innerHTML = rst.join('<br>');
+		};
+
+		utils.on(btnSlide, 'click', function (ev) {
+			if (regionConfig.className === 'active') {
+				btnSlide.innerHTML = '+';
+				regionConfig.className = '';
+			} else {
+				btnSlide.innerHTML = '-';
+				regionConfig.className = 'active';
+			}
+		});
+
+		utils.on(btnClear, 'click', function (ev) {
+			if (confirm('Continue To Clear Result')) {
+				localStorage.clear();
+				location.reload()
+			}
+		});
+
+		utils.on(btnSub, 'click', function (ev) {
+			var varName = inputName.value;
+			var varNum = parseInt(inputNum.value, 10);
+
+			if ('' === varName || 0 >= varNum) {
+				return;
+			}
+
+			utils.setItem(LS_KEY_PRIZE_NAME, varName);
+			utils.setItem(LS_KEY_PRIZE_NUM, varNum);
+
+			var list = utils.getItem(LS_KEY_LIST, LIST_NAME, true);
+			nameList = utils.splitList(list, varNum);
+
+			var regionCanvas = utils.getById('region_canvas')
+
+			var dom = [];
+			var canvasWidth = (CANVAS_REGION_WIDTH - (varNum - 1) * CANVAS_REGION_SPLIT) / varNum;
+			for (var i = 0; i < varNum; i++) {
+				dom.push('<canvas width="' + canvasWidth + '" height="' + CANVAS_HEIGHT + '" id="container_' + i + '"></canvas>');
+			}
+
+			regionCanvas.innerHTML = dom.join('');
+
+			slotList = [];
+			for (var i = 0; i < varNum; i++) {
+				slotList.push(new SLOT(
+					'container_' + i,
+					nameList[i],
+					{
+						// 加速滚动的加速度 px/s
+						speedUp: 2000,
+						// 减速滚动的加速度 px/s
+						speedDown: 800,
+						// 最大滚动速度 px/s
+						speedMax: 2000,
+						// 文字大小 px
+						fontSize: 30,
+						// 文字行高 px
+						fontLineHeight: 50,
+						// 最后修正到最终目标的速度 px/s
+						speedFix: 20,
+						// 帧率 frame / s
+						fps: 60,
+						// 是否调试 （日志，图像）
+						debug: false,
+					}
+				));
+			}
+
+		});
+
+		utils.on(document.body, 'keydown', function (ev) {
+			if (ev.target.id === 'inputName' || ev.target.id === 'inputNum') {
+				return;
+			}
+			if (ev.keyCode !== 32) {
+				return;
+			}
+			var recNum = utils.getItem(LS_KEY_PRIZE_NUM, 0, false);
+			if (0 >= recNum) {
+				return;
+			}
+
+			var isReset = true;
+			for (var i = 0; i < recNum; i++) {
+				if (slotList[i].constVal.STATE_RESET !== slotList[i].getStatus()) {
+					isReset = false;
+					break;
+				}
+			}
+
+			if (isReset) {
+				utils.trigger(btnSub, 'click');
+				newNameList = [];
+				for (var i = 0; i < recNum; i++) {
+					slotList[i].start(i * 200);
+				}
+				return;
+			}
+
+			var isKeep = true;
+			for (var i = 0; i < recNum; i++) {
+				var curSlot = slotList[i];
+				if (curSlot.constVal.STATE_SPEED_KEEP !== curSlot.getStatus()) {
+					isKeep = false;
+					break;
+				}
+			}
+
+			if (isKeep) {
+				for (var i = 0; i < recNum; i++) {
+					slotList[i].stop(function (idx, name, list) {
+						var li = utils.copyList(list);
+						li.splice(idx, 1)
+						newNameList.push(li);
+						utils.add('p_' + inputName.value, name);
+						drawBoard();
+						if (newNameList.length >= nameList.length) {
+							utils.setItem(LS_KEY_LIST, newNameList.reduce(function (a, b) {
+								return [].concat(a, b);
+							}).sort(function (a, b) {
+								return Math.random() > .5 ? -1 : 1;
+							}), true);
+						}
+					});
+				}
+				return;
+			}
+		});
+
+		var recName = utils.getItem(LS_KEY_PRIZE_NAME, '', false);
+		var recNum = utils.getItem(LS_KEY_PRIZE_NUM, 0, false);
+
+		if ('' !== recName && 0 < recNum) {
+			inputName.value = recName;
+			inputNum.value = recNum;
+		} else {
+			inputName.value = '大奖';
+			inputNum.value = 1;	
+		}
+		
+		utils.trigger(btnSub, 'click');
+		drawBoard();
+
+	</script>
+</body>
+
+</html>
