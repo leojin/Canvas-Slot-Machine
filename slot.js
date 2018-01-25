@@ -27,6 +27,15 @@ var SLOT = function (eleId, choiceList, setting) {
     settingVal.fontLineHeight = typeof setting.fontLineHeight === 'undefined' ? 40 : parseInt(setting.fontLineHeight, 10);
     settingVal.fps = typeof setting.fps === 'undefined' ? 60 : parseInt(setting.fps, 10);
     settingVal.debug = typeof setting.debug === 'undefined' ? false : setting.debug;
+    settingVal.modalSrc = typeof setting.modalSrc === 'undefined' ? '' : setting.modalSrc;
+    settingVal.modalWidth = typeof setting.modalWidth === 'undefined' ? 40 : setting.modalWidth;
+    settingVal.modalHeight = typeof setting.modalHeight === 'undefined' ? 40 : setting.modalHeight;
+    settingVal.borderLeftSrc = typeof setting.borderLeftSrc === 'undefined' ? '' : setting.borderLeftSrc;
+    settingVal.borderLeftWidth = typeof setting.borderLeftWidth === 'undefined' ? areaHeight : setting.borderLeftWidth;
+    settingVal.borderLeftHeight = typeof setting.borderLeftHeight === 'undefined' ? areaHeight : setting.borderLeftHeight;
+    settingVal.borderRightSrc = typeof setting.borderRightSrc === 'undefined' ? '' : setting.borderRightSrc;
+    settingVal.borderRightWidth = typeof setting.borderRightWidth === 'undefined' ? areaHeight : setting.borderRightWidth;
+    settingVal.borderRightHeight = typeof setting.borderRightHeight === 'undefined' ? areaHeight : setting.borderLeftHeight;
 
     var rstPosTextFix,
         rstVirtualHeight,
@@ -39,6 +48,10 @@ var SLOT = function (eleId, choiceList, setting) {
     var timer = null;
     var flagClearNextInterval = false,
         flagWinner = false;
+
+    var imgModal = null,
+        imgBorderLeft = null,
+        imgBorderRight = null;
 
     /**
      * Running Var
@@ -71,7 +84,54 @@ var SLOT = function (eleId, choiceList, setting) {
         curBase = areaHeightHalf - rstLineHeightHalf;
         log('WIDTH', areaWidth);
         log('HEIGHT', areaHeight);
+        if (settingVal.modalSrc && !imgModal) {
+            initImg(settingVal.modalSrc, function (img) {
+                log('IMG MODAL LOAD');
+                imgModal = new Image();
+                imgModal.src = settingVal.modalSrc;
+            });
+        }
+        if (settingVal.borderLeftSrc && !imgBorderLeft) {
+            initImg(settingVal.borderLeftSrc, function (img) {
+                log('IMG BORDER LEFT LOAD');
+                imgBorderLeft = new Image();
+                imgBorderLeft.src = settingVal.borderLeftSrc;
+                ctx.drawImage(
+                    imgBorderLeft,
+                    0,
+                    0,
+                    settingVal.borderLeftWidth,
+                    settingVal.borderLeftHeight
+                );
+            });
+        }
+        if (settingVal.borderRightSrc && !imgBorderRight) {
+            initImg(settingVal.borderRightSrc, function (img) {
+                log('IMG BORDER LEFT LOAD');
+                imgBorderRight = new Image();
+                imgBorderRight.src = settingVal.borderRightSrc;
+                ctx.drawImage(
+                    imgBorderRight,
+                    areaWidth - settingVal.borderRightWidth,
+                    0,
+                    settingVal.borderRightWidth,
+                    settingVal.borderRightHeight
+                );
+            });
+        }
         render();
+    };
+
+    var initImg = function (src, cb) {
+        var img = new Image();
+        img.onload = function () {
+            log('IMG LOAD', src);
+            if (typeof cb !== 'function') {
+                return;
+            }
+            cb.apply(this, [img]);
+        };
+        img.src = src;
     };
 
     var log = function () {
@@ -122,6 +182,7 @@ var SLOT = function (eleId, choiceList, setting) {
         renderBg();
         renderObjs();
         renderWinner();
+        renderBorder();
     };
 
     var renderBg = function () {
@@ -132,6 +193,27 @@ var SLOT = function (eleId, choiceList, setting) {
         grd.addColorStop(1, '#999');
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, areaWidth, areaHeight);
+    };
+
+    var renderBorder = function () {
+        if (imgBorderLeft) {
+            ctx.drawImage(
+                imgBorderLeft,
+                0,
+                0,
+                settingVal.borderLeftWidth,
+                settingVal.borderLeftHeight
+            );
+        }
+        if (imgBorderRight) {
+            ctx.drawImage(
+                imgBorderRight,
+                areaWidth - settingVal.borderRightWidth,
+                0,
+                settingVal.borderRightWidth,
+                settingVal.borderRightHeight
+            );
+        }
     };
 
     var renderObjs = function () {
@@ -169,7 +251,32 @@ var SLOT = function (eleId, choiceList, setting) {
         ctx.lineWidth = 1;
         ctx.strokeStyle = '#aaa';
         ctx.stroke();
-        if (winner) {
+        if (winner && imgModal) {
+            log('DRAW WINNER WITH MODAL');
+            ctx.fillStyle = '#ff7979';
+            ctx.font = (settingVal.fontSize + 2) + 'px ' + settingVal.fontFamily;
+            ctx.drawImage(
+                imgModal,
+                areaWidthHalf -
+                    settingVal.modalWidth / 2 -
+                    ctx.measureText(choices[(idx + choices.length) % choices.length]).width / 2 - 
+                    settingVal.fontSize * 2 / 3,
+                areaHeightHalf - settingVal.modalHeight / 2,
+                settingVal.modalWidth,
+                settingVal.modalHeight
+            );
+            ctx.drawImage(
+                imgModal,
+                areaWidthHalf -
+                    settingVal.modalWidth / 2 +
+                    ctx.measureText(choices[(idx + choices.length) % choices.length]).width / 2 +
+                    settingVal.fontSize * 2 / 3,
+                areaHeightHalf - settingVal.modalHeight / 2,
+                settingVal.modalWidth,
+                settingVal.modalHeight
+            );
+        } else if (winner) {
+            log('DRAW WINNER');
             ctx.fillStyle = '#ff7979';
             ctx.font = (settingVal.fontSize + 2) + 'px ' + settingVal.fontFamily;
         } else {
@@ -188,7 +295,7 @@ var SLOT = function (eleId, choiceList, setting) {
         ctx.lineTo(areaWidth, areaHeightHalf + rstLineHeightHalf);
         ctx.lineTo(0, areaHeightHalf + rstLineHeightHalf);
         ctx.lineTo(0, areaHeightHalf - rstLineHeightHalf);
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 3;
         ctx.strokeStyle = '#ff7979';
         ctx.stroke();
     };

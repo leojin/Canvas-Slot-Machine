@@ -69,6 +69,39 @@ slotMachineIns.stop(function (idx, name, list) {
 ## fps
 - **defalut** 60
 
+## modalSrc
+- **unit** px
+
+## modalWidth
+- **unit** px
+- **default** 60
+
+## modalHeight
+- **unit** px
+- **default** 60
+
+## borderLeftSrc
+- **unit** px
+
+## borderLeftWidth
+- **unit** px
+- **default** CANVAS_HEIGHT
+
+## borderLeftHeight
+- **unit** px
+- **default** CANVAS_HEIGHT
+
+## borderRightSrc
+- **unit** px
+
+## borderRightWidth
+- **unit** px
+- **default** CANVAS_HEIGHT
+
+## borderRightHeight
+- **unit** px
+- **default** CANVAS_HEIGHT
+
 ## debug
 - Set true to enable log and outline
 - **defalut** false

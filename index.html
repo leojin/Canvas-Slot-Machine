@@ -2,12 +2,13 @@
 <html>
 <head>
 	<meta charset='utf-8'>
-	<title>Demo</title>
+	<title>抽奖</title>
 	<style type='text/css'>
 		html {
 			background: #000;
 			-webkit-user-select: none;
 			user-select: none;
+			background-image: url('bg.jpeg');
 		}
 		label {
 			color: #fff;
@@ -21,16 +22,25 @@
 			padding: 0 15px;
 			margin: 0;
 			font-size: 14px;
+			width: 60px;
+			text-align: center;
 		}
 		input[type='button'] {
 			cursor: pointer;
 		}
 		#wrap {
 			margin: 0 auto;
-			width: 800px;
+			width: 900px;
+		}
+		#region_title {
+			text-align: center;
+			color: #fff;
+			padding-top: 10px;
+			line-height: 50px;
+			font-size: 25px;
 		}
 		#region_canvas {
-			height: 100px;
+			height: 200px;
 			padding: 10px 0;
 			display: -webkit-flex;
 			display: flex;
@@ -59,17 +69,33 @@
 			height: 50px;
 			cursor: pointer;
 		}
+		#form {
+			text-align: right;
+		}
 		#board {
 			border-top: 1px solid #fff;
 			padding-top: 10px;
 			color: #fff;
 			line-height: 25px;
 			font-size: 14px;
+			padding: 10px 200px;
+		}
+		.prizeList {
+			padding-top: 10px;
+			position: relative;
+		}
+		.clearPrize {
+			position: absolute;
+			top: 0;
+			left: 100%;
+			margin-left: 10px;
+			margin-top: 13px;
 		}
 	</style>
 </head>
 <body>
 	<div id='wrap'>
+		<div id="region_title"></div>
 		<div id='region_canvas'>
 		</div>
 		<div id='region_config'>
@@ -81,15 +107,15 @@
 				&nbsp;&nbsp;
 				<input id='btnSub' type='button' value='更新'>
 				&nbsp;&nbsp;
-				<input id='btnClear' type='button' value='清空结果'>
-				<p id='board'></p>
+				<input id='btnClear' type='button' value='清空'>
 			</div>
+			<p id='board'></p>
 		</div>
 	</div>
 
 	<script type="text/javascript" src='slot.js'></script>
-	<!--<script type="text/javascript" src='data-test.js'></script>-->
-	<script type="text/javascript" src='data.js'></script>
+	<!--<script type="text/javascript" src='data.js'></script>-->
+	<script type="text/javascript" src='data-test.js'></script>
 	<script type="text/javascript">
 		var utils = {
 			getItem: function (key, defaultValue, isObj) {
@@ -145,9 +171,6 @@
 		}
 	</script>
 	<script type="text/javascript">
-		var CANVAS_HEIGHT = 100;
-		var CANVAS_REGION_WIDTH = 800;
-		var CANVAS_REGION_SPLIT = 10;
 
 		var LS_KEY_PRIZE_NAME = 'prize_name';
 		var LS_KEY_PRIZE_NUM = 'prize_num';
@@ -156,23 +179,51 @@
 		var btnSlide = utils.getById('btnSlide');
 		var btnClear = utils.getById('btnClear');
 		var btnSub = utils.getById('btnSub');
+		var regionCanvas = utils.getById('region_canvas');
 		var regionConfig = utils.getById('region_config');
+		var regionTitle = utils.getById('region_title');
 		var inputName = utils.getById('inputName');
 		var inputNum = utils.getById('inputNum');
 		var board = utils.getById('board');
+
+		var CANVAS_HEIGHT = parseInt(document.defaultView.getComputedStyle(regionCanvas).height);
+		var CANVAS_REGION_WIDTH = parseInt(document.defaultView.getComputedStyle(regionCanvas).width);
+		var CANVAS_REGION_SPLIT = 10;
 
 		var slotList = [];
 		var nameList = [];
 		var newNameList = [];
 
+		var clearPrize = function (prizeName) {
+			var prizeOwnerList = utils.getItem(prizeName, [], true);
+			if (!prizeOwnerList) {
+				return;
+			}
+			if (!confirm('清空【' + prizeName.substr(2) + '】的获奖者？')) {
+				return;
+			}
+			if (!confirm('确认操作？')) {
+				return;
+			}
+			localStorage.removeItem(prizeName);
+			var tmpList = [utils.getItem(LS_KEY_LIST, [], true)];
+			tmpList.push(prizeOwnerList);
+			utils.setItem(LS_KEY_LIST, tmpList.reduce(function (a, b) {
+				return [].concat(a, b);
+			}).sort(function (a, b) {
+				return Math.random() > .5 ? -1 : 1;
+			}), true);;
+			drawBoard();
+		};
+
 		var drawBoard = function () {
 			var rst = [];
 			for (var k in localStorage) {
 				if (/^p_/.test(k)) {
-					rst.push('<b>' + k.substr(2) + '</b> : ' + utils.getItem(k, [], true).join(' , '));
+					rst.push('<div class="prizeList"><b>' + k.substr(2) + '</b> : ' + utils.getItem(k, [], true).join(' , ') + '<input class="clearPrize" type="button" value="清空" onclick="clearPrize(\'' + k + '\')"></div>');
 				}
 			}
-			board.innerHTML = rst.join('<br>');
+			board.innerHTML = rst.join('');
 		};
 
 		utils.on(btnSlide, 'click', function (ev) {
@@ -186,10 +237,14 @@
 		});
 
 		utils.on(btnClear, 'click', function (ev) {
-			if (confirm('Continue To Clear Result')) {
-				localStorage.clear();
-				location.reload()
+			if (!confirm('清空全部记录？')) {
+				return;
 			}
+			if (!confirm('确认操作？')) {
+				return;
+			}
+			localStorage.clear();
+			location.reload()
 		});
 
 		utils.on(btnSub, 'click', function (ev) {
@@ -203,10 +258,10 @@
 			utils.setItem(LS_KEY_PRIZE_NAME, varName);
 			utils.setItem(LS_KEY_PRIZE_NUM, varNum);
 
+			regionTitle.innerHTML = varName;
+
 			var list = utils.getItem(LS_KEY_LIST, LIST_NAME, true);
 			nameList = utils.splitList(list, varNum);
-
-			var regionCanvas = utils.getById('region_canvas')
 
 			var dom = [];
 			var canvasWidth = (CANVAS_REGION_WIDTH - (varNum - 1) * CANVAS_REGION_SPLIT) / varNum;
@@ -223,19 +278,37 @@
 					nameList[i],
 					{
 						// 加速滚动的加速度 px/s
-						speedUp: 2000,
+						speedUp: 2500,
 						// 减速滚动的加速度 px/s
 						speedDown: 800,
 						// 最大滚动速度 px/s
-						speedMax: 2000,
+						speedMax: 2500,
 						// 文字大小 px
-						fontSize: 30,
+						fontSize: 60,
 						// 文字行高 px
-						fontLineHeight: 50,
+						fontLineHeight: 100,
 						// 最后修正到最终目标的速度 px/s
-						speedFix: 20,
+						speedFix: 40,
 						// 帧率 frame / s
 						fps: 60,
+						// 奖牌图片
+						modalSrc: 'modal.png',
+						// 奖牌宽度
+						modalWidth: 60,
+						// 奖牌高度
+						modalHeight: 60,
+						// 左边框图片
+						borderLeftSrc: 'border-left.png',
+						// 左边框宽度
+						borderLeftWidth: 516 / 1248 * CANVAS_HEIGHT,
+						// 左边框高度
+						borderLeftHeight: CANVAS_HEIGHT,
+						// 右边框图片
+						borderRightSrc: 'border-right.png',
+						// 右边框宽度
+						borderRightWidth: 516 / 1248 * CANVAS_HEIGHT,
+						// 右边框高度
+						borderRightHeight: CANVAS_HEIGHT,
 						// 是否调试 （日志，图像）
 						debug: false,
 					}
